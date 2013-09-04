@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - trackball camera</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+  body {
+    color: #000;
+    font-family:Monospace;
+    font-size:13px;
+    text-align:center;
+    font-weight: bold;
+
+    background-color: #fff;
+    margin: 0px;
+    overflow: hidden;
+	}
+        
+  #info {
+    color:#000;
+    position: absolute;
+    top: 0px; width: 100%;
+    padding: 5px;
+    overflow:auto;
+  }
+  
+  .ui {
+    /*float: right;*/
+    margin: 10px;
+  }
+
+  a { color: red; }
+
+		</style>
+	</head>
+
+	<body>
+		<div id="container"></div>
+		<div id="info" onmouseover="controls.enabled=false;" onmouseout="controls.enabled=true;">
+			MOVE mouse & press LEFT/A: rotate, MIDDLE/S: zoom, RIGHT/D: pan
+      <form class="ui">
+        Remove vertex <select id="deleteVertex" onchange="renderModel(this.options[this.selectedIndex].value);">
+          <option value="">None</option>
+        </select>
+      </form>
+		</div>
+
+		<script src="js/three.js"></script>
+    <script src="js/TrackballControls.js"></script>
+
+		<script>
+
+			var container, stats;
+
+			var camera, controls, scene, renderer;
+      var cameraRadius=100;
+      var cube = null;
+      var mesh = null;
+      var axes = null;
+
+			init();
+			renderModel();
+      
+      var selectEl = document.getElementById('deleteVertex');
+      var i=0;
+      for(var i=0; i<cube.vertices.length; i++) {
+        var opt = document.createElement("option");
+        opt.value = i;
+        opt.text = i;
+        selectEl.add(opt, null);
+      }
+      
+      animate();
+
+			function init() {
+
+				// scene and camera
+
+				scene = new THREE.Scene();
+				//scene.fog = new THREE.FogExp2( 0xffffff, 0.002 );
+        
+        axes = new THREE.AxisHelper(1000);
+        axes.visible = true;
+        scene.add(axes);
+        
+				camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 1000 );
+				camera.position.z = cameraRadius;
+        
+        scene.add(camera);
+        
+        controls = new THREE.TrackballControls( camera );
+        
+				controls.rotateSpeed = 1.0;
+				controls.zoomSpeed = 1.2;
+				controls.panSpeed = 0.8;
+        
+				controls.noZoom = false;
+				controls.noPan = false;
+        
+				controls.staticMoving = true;
+				controls.dynamicDampingFactor = 0.3;
+        
+				controls.keys = [ 65, 83, 68 ];
+        
+				// lights
+				light = new THREE.DirectionalLight( 0xff0000 );
+				light.position.set( 10, 15, 10 );
+				scene.add( light );
+        
+				light = new THREE.DirectionalLight( 0x0080ff );
+				light.position.set( -10, -20, 0 );
+				scene.add( light );
+        
+				light = new THREE.AmbientLight( 0x008000 );
+				scene.add( light );
+        
+				// renderer
+				renderer = new THREE.WebGLRenderer( { antialias: false } );
+				renderer.setClearColorHex( 0xffffff, 1 );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+        
+				container = document.getElementById( 'container' );
+				container.appendChild( renderer.domElement );
+			}
+      
+      function getBasicModel() {
+        
+        //cube = new THREE.CubeGeometry( 20, 60, 20 );
+                
+        // Remove the front face(s)
+        /*var frontFace = cube.faces.splice(8,1);
+        var frontFace = cube.faces.splice(8,1);*/
+        //console.log("Removed front face", frontFace);
+        
+        // Add new vertex
+        //cube.vertices.push(new THREE.Vertex(new THREE.Vector3(0,0,15)));
+        
+        // Add new faces
+        /*cube.faces.push(new THREE.Face3(0,5,8));
+        cube.faces.push(new THREE.Face3(2,0,8));
+        cube.faces.push(new THREE.Face3(7,2,8));
+        cube.faces.push(new THREE.Face3(5,7,8));*/
+        
+        //console.log("Added new faces", cube.faces.slice(4,cube.faces.length));
+        
+        cube = new THREE.IcosahedronGeometry(30, 0);
+        
+        cube.computeFaceNormals();
+        //cube.computeVertexNormals();
+        
+        console.log("Cube Normals", cube.normals[0]);
+        
+        console.log("Cube", cube);
+        
+				return cube;
+      }
+      
+      function renderModel(vertexToRemove) {
+        if(mesh) {
+          scene.remove(mesh);
+        }
+        cube = getBasicModel();
+        if(typeof vertexToRemove !== "undefined" && vertexToRemove !== null && vertexToRemove !== "") {
+          vertexToRemove = Number(vertexToRemove);
+          cube = removeVertex(cube, vertexToRemove);
+          cube.computeFaceNormals();
+          //cube.computeVertexNormals();
+        }
+        
+        var material =  new THREE.MeshLambertMaterial( { color: 0xffffff, wireframe:false, shading:THREE.FlatShading } );
+        mesh = new THREE.Mesh(cube, material);
+        mesh.updateMatrix();
+        mesh.matrixAutoUpdate = false;
+        scene.add(mesh);
+      }
+      
+      function removeVertex(geometry, index) {
+        
+        console.log("Vertex to remove", index);
+        
+        // Remove vertex
+        var removedVertex = geometry.vertices[index]; //geometry.vertices.splice(index, 1);
+        
+        console.log("Removed vertex", removedVertex);
+        
+        // Find and remove faces that incorporate the vertext to be removed
+        var facesIncorporatingVertex = [];
+        var removedVertexNormal = null;
+        for(var i=0; i<geometry.faces.length; i++) {
+          var face = geometry.faces[i];
+          var isRemovedVertexFace = false;
+          if(typeof face.a != "undefined" && face.a === index) { removedVertexNormal = face.vertexNormals[0]; isRemovedVertexFace = true; }
+          if(typeof face.b != "undefined" && face.b === index) { removedVertexNormal = face.vertexNormals[1]; isRemovedVertexFace = true; }
+          if(typeof face.c != "undefined" && face.c === index) { removedVertexNormal = face.vertexNormals[2]; isRemovedVertexFace = true; }
+          
+          if(isRemovedVertexFace) {
+            geometry.faces.splice(i, 1);  // Remove face
+            i--;
+            facesIncorporatingVertex.push(face);
+          }
+        }
+        console.log("Faces incorporating this vertex", facesIncorporatingVertex);
+        
+        console.log("Normal:", removedVertexNormal);
+        
+        var unsortedFaces = facesIncorporatingVertex.slice(0);
+        //var orderedVertices = verticesInFaceExcept(unsortedFaces.splice(0,1)[0], [index]);  // Get first two vertices in first face that aren't the removed vertex, and remove that face as already processed
+        var firstFace = unsortedFaces.splice(0,1)[0];
+        var orderedVertices = null;
+        if(firstFace.a === index) {
+          orderedVertices = [firstFace.b, firstFace.c];
+        }
+        else if(firstFace.b === index) {
+          orderedVertices = [firstFace.c, firstFace.a];
+        }
+        else {  // firstFace.c === index
+          orderedVertices = [firstFace.a, firstFace.b];
+        }
+        
+        while(unsortedFaces.length > 1) {    // Until we run out of faces to order
+          var lastVertex = orderedVertices[orderedVertices.length-1];
+          for(var i=0; i<unsortedFaces.length; i++) {  // Test each unsorted face in turn to find the next one in the sequence
+            var face = unsortedFaces[i];
+            if(vertexInFace(face, index) && vertexInFace(face, lastVertex)) {  // If this face has the removed vertex and the last vertex we processed, add the other vertex in the face to the list
+              orderedVertices.push(verticesInFaceExcept(face, [index, lastVertex])[0]);
+              unsortedFaces.splice(i,1);  // And remove this face from future processing now we've found its place in the sequence
+              break;  // And begin the search for the *next* face
+            }
+          }
+        }
+        
+        console.log("Ordered vertices", orderedVertices);
+        
+        // Build new face(s) to replace removed vertex and its faces
+        if(orderedVertices < 3) {
+          console.error("ERROR: Somehow ended up with fewer than 3 unique vertices to stitch back together!");
+        }
+        else {
+          for(var i=0; i<orderedVertices.length-2; i++) {
+            var newFace = null;
+            //if(removedVertexNormal.y >= 0) {
+              newFace = new THREE.Face3(orderedVertices[i+1],orderedVertices[i+2],orderedVertices[0]);
+            //}
+            //else {
+            //  newFace = new THREE.Face3(orderedVertices[0],orderedVertices[i+2],orderedVertices[i+1]);
+            //}
+            geometry.faces.push(newFace);
+            console.log("New face: ", newFace);
+            // PROBLEM: Vertices aren't always arranged neatly in a clockwise pattern, as this method anticipates.  What to do about "disordered" sequences of vertices?
+          }
+        }
+        
+        console.log("Revised geometry", geometry);
+        
+        return geometry;
+      }
+      
+      function vertexInFace(face, vertex) {
+        return ([face.a, face.b, face.c].indexOf(vertex) !== -1);
+      }
+      
+      function verticesInFaceExcept(face, notVertices) {
+        return [face.a, face.b, face.c].filter(function(v) { return notVertices.indexOf(v) === -1; });
+      }
+      
+			function animate() {
+				requestAnimationFrame( animate );
+				render();
+			}
+      
+			function render() {
+				controls.update();
+				renderer.render( scene, camera );
+			}
+      
+		</script>
+
+	</body>
+</html>
+

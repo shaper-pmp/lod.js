@@ -58,6 +58,10 @@
       var cube = null;
       var mesh = null;
       var axes = null;
+      
+      var config = {
+        avoidZeroWidthChunks: true,
+      };
 
 			init();
 			renderModel();
@@ -126,7 +130,7 @@
       
       function getBasicModel() {
         
-        //cube = new THREE.CubeGeometry( 20, 60, 20 );
+        cube = new THREE.CubeGeometry( 20, 60, 20 );
                 
         // Remove the front face(s)
         /*var frontFace = cube.faces.splice(8,1);
@@ -144,7 +148,7 @@
         
         //console.log("Added new faces", cube.faces.slice(4,cube.faces.length));
         
-        cube = new THREE.IcosahedronGeometry(30, 0);
+        //cube = new THREE.IcosahedronGeometry(30, 0);
         
         cube.computeFaceNormals();
         //cube.computeVertexNormals();
@@ -238,16 +242,23 @@
         }
         else {
           for(var i=0; i<orderedVertices.length-2; i++) {
-            var newFace = null;
-            //if(removedVertexNormal.y >= 0) {
-              newFace = new THREE.Face3(orderedVertices[i+1],orderedVertices[i+2],orderedVertices[0]);
-            //}
-            //else {
-            //  newFace = new THREE.Face3(orderedVertices[0],orderedVertices[i+2],orderedVertices[i+1]);
-            //}
+            var newFace = new THREE.Face3(orderedVertices[i+1],orderedVertices[i+2],orderedVertices[0]);
+            
+            /*if(config.avoidZeroWidthChunks) { // Look for any other face that has the same vertices as this face (ie, together they form a 0-width piece of the shape)
+              console.log("Looking for 0-width face-pairs for "+[newFace.a, newFace.b, newFace.c]);
+              for(var j=0; j<geometry.faces.length; j++) {
+                var thisFace = geometry.faces[j];
+                var vertexUnion = verticesInFaceExcept(thisFace, [newFace.a, newFace.b, newFace.c]);
+                console.log("Checking face "+j+": "+[thisFace.a, thisFace.b, thisFace.c]+" ("+vertexUnion+")");
+                if(vertexUnion == []) {  // This face duplicates another with identical vertices
+                  console.log(geometry.faces[j]);
+                  
+                }
+              }
+            }*/
+            
             geometry.faces.push(newFace);
             console.log("New face: ", newFace);
-            // PROBLEM: Vertices aren't always arranged neatly in a clockwise pattern, as this method anticipates.  What to do about "disordered" sequences of vertices?
           }
         }
         
